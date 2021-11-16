@@ -95,3 +95,38 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+
+// exec_mem
+
+int
+fn1() { return 1; }
+
+uint64
+sys_exec_mem(void) {
+    printf("sys_exec_mem\n");
+    pagetable_t pt = uvmcreate();
+    void *mem = kalloc();
+
+    int fsize = (void *)&sys_exec_mem - (void *)&fn1;
+    printf("fsize: %d\n", fsize);
+    void *dst = memmove(mem, (const void *)&fn1, fsize);
+    int (*f)();
+    f = dst;
+
+    uvmalloc(pt, 0, PGSIZE);
+    if (mappages(pt, PGSIZE, PGSIZE, (uint64)mem, PTE_R | PTE_X) < 0) {
+        printf("mappages failed\n");
+        return 0;
+    }
+
+    if (memcmp(dst, f, fsize) != 0) {
+        printf("moved memory not equal to original\n");
+        return -1;
+    }
+
+    printf("native ret: %d\n", fn1());
+    printf("mem ret:    %d\n", f());
+
+    return 0;
+}
