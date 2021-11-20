@@ -100,27 +100,33 @@ sys_uptime(void)
 // exec_mem
 
 int
-fn1() { return 1; }
+fn1(void(*print)(char *, ...)) {
+    /*print("abc\n");*/
+    return 1;
+}
 
 uint64
 sys_exec_mem(void) {
-    // create a new pagetable
-    pagetable_t pt = uvmcreate();
+    // refer to the kernel pagetable (defined in kernel/vm.c)
+    extern pagetable_t kernel_pagetable;
+    pagetable_t pt = kernel_pagetable; // instead of uvmcreate();
     // allocate a page that will be used to store the function
     void *mem = kalloc();
 
-    // not strictly necessary but seems to be the norm
-    uvmalloc(pt, 0, PGSIZE);
+    uint64 va = 0x89000000;
     // map the new page as READ and EXECUTE
-    if (mappages(pt, PGSIZE, PGSIZE, (uint64)mem, PTE_R | PTE_X) < 0) {
+    if (mappages(pt, va, PGSIZE, (uint64)mem, PTE_R | PTE_W | PTE_X) < 0) {
         printf("mappages failed\n");
         return 0;
     }
 
-    // copy fn1 into the allocated page
     int fsize = (void *)&sys_exec_mem - (void *)&fn1;
-    void *dst = memmove(mem, (const void *)&fn1, fsize);
-    int (*f)();
+    void *dst = memmove((void*)va, (const void *)&fn1, fsize);
+
+    // Instead of copying the code of fn1, just write two (compact, 16 bit) "ret" machine
+    // instructions to the virtual page
+    /*printf("printf - dst = %x\n", dst - (void*)&printf);*/
+    int (*f)(void(*)(char *, ...));
     f = dst;
 
     // verify that the function was correctly copied
@@ -130,8 +136,8 @@ sys_exec_mem(void) {
     }
 
     // execute native and memory bound function
-    printf("native ret: %d\n", fn1());
-    printf("mem ret:    %d\n", f());
+    printf("native ret: %d\n", fn1(&printf));
+    printf("mem ret:    %d\n", f(&printf));
 
     return 0;
 }
