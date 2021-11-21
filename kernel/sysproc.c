@@ -101,7 +101,7 @@ sys_uptime(void)
 
 int
 fn1(void(*print)(char *, ...)) {
-    /*print("abc\n");*/
+    print("abc\n");
     return 1;
 }
 
@@ -136,8 +136,8 @@ sys_exec_mem(void) {
     }
 
     // execute native and memory bound function
-    printf("native ret: %d\n", fn1(&printf));
-    printf("mem ret:    %d\n", f(&printf));
+    fn1(&printf);
+    f(&printf);
 
     return 0;
 }
